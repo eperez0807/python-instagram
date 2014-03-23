@@ -77,6 +77,8 @@ class Media(ApiModel):
 
         new_media.filter = entry.get('filter')
 
+        new_media.type = entry.get('type')
+
         return new_media
 
 
