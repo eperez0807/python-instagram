@@ -1,6 +1,6 @@
 import oauth2
 from bind import bind_method
-from models import Media, User, Location, Tag, Comment, Relationship
+from models import MediaShortcode, Media, User, Location, Tag, Comment, Relationship
 
 MEDIA_ACCEPT_PARAMETERS = ["count", "max_id"]
 SEARCH_ACCEPT_PARAMETERS = ["q", "count"]
@@ -17,6 +17,8 @@ class InstagramAPI(oauth2.OAuth2API):
     access_token_url = "https://api.instagram.com/oauth/access_token"
     protocol = "https"
     api_name = "Instagram"
+    x_ratelimit_remaining  = None
+    x_ratelimit = None
 
     def __init__(self, *args, **kwargs):
         format = kwargs.get('format', 'json')
@@ -33,8 +35,15 @@ class InstagramAPI(oauth2.OAuth2API):
 
     media_search = bind_method(
                 path="/media/search",
-                accepts_parameters=SEARCH_ACCEPT_PARAMETERS + ['lat', 'lng', 'min_timestamp', 'max_timestamp'],
+                accepts_parameters=SEARCH_ACCEPT_PARAMETERS + ['lat', 'lng', 'min_timestamp', 'max_timestamp', 'distance'],
                 root_class=Media)
+
+    media_shortcode = bind_method(
+                path="/media/shortcode/{shortcode}",
+                accepts_parameters=['shortcode'],
+                response_type="entry",
+                root_class=MediaShortcode)
+
 
     media_likes = bind_method(
                 path="/media/{media_id}/likes",
@@ -44,18 +53,21 @@ class InstagramAPI(oauth2.OAuth2API):
     like_media = bind_method(
                 path="/media/{media_id}/likes",
                 method="POST",
+                signature=True,
                 accepts_parameters=['media_id'],
                 response_type="empty")
 
     unlike_media = bind_method(
                 path="/media/{media_id}/likes",
                 method="DELETE",
+                signature=True,
                 accepts_parameters=['media_id'],
                 response_type="empty")
 
     create_media_comment = bind_method(
                 path="/media/{media_id}/comments",
                 method="POST",
+                signature=True,
                 accepts_parameters=['media_id', 'text'],
                 response_type="empty",
                 root_class=Comment)
@@ -63,6 +75,7 @@ class InstagramAPI(oauth2.OAuth2API):
     delete_comment = bind_method(
                 path="/media/{media_id}/comments/{comment_id}",
                 method="DELETE",
+                signature=True,
                 accepts_parameters=['media_id', 'comment_id'],
                 response_type="empty")
 
@@ -128,7 +141,7 @@ class InstagramAPI(oauth2.OAuth2API):
 
     location_search = bind_method(
                 path="/locations/search",
-                accepts_parameters=SEARCH_ACCEPT_PARAMETERS + ['lat', 'lng', 'foursquare_id'],
+                accepts_parameters=SEARCH_ACCEPT_PARAMETERS + ['lat', 'lng', 'foursquare_id', 'foursquare_v2_id'],
                 root_class=Location)
 
     location = bind_method(
@@ -168,6 +181,7 @@ class InstagramAPI(oauth2.OAuth2API):
     change_user_relationship = bind_method(
                 method="POST",
                 path="/users/{user_id}/relationship",
+                signature=True,
                 root_class=Relationship,
                 accepts_parameters=["user_id", "action"],
                 paginates=True,
@@ -210,12 +224,14 @@ class InstagramAPI(oauth2.OAuth2API):
             accepts_parameters.extend(include)
         if exclude:
             accepts_parameters = [x for x in accepts_parameters if x not in exclude]
+        signature = False if method == 'GET' else True
         return bind_method(
             path="/subscriptions",
             method=method,
             accepts_parameters=accepts_parameters,
             include_secret=True,
-            objectify_response=False
+            objectify_response=False,
+            signature=signature,
         )
 
     create_subscription = _make_subscription_action('POST')

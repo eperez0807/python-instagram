@@ -6,6 +6,8 @@ class ApiModel(object):
     @classmethod
     def object_from_dictionary(cls, entry):
         # make dict keys all strings
+        if entry is None:
+            return ""
         entry_str_dict = dict([(str(key), value) for key, value in entry.items()])
         return cls(**entry_str_dict)
 
@@ -23,15 +25,12 @@ class Image(ApiModel):
     def __unicode__(self):
         return "Image: %s" % self.url
 
-class Video(ApiModel):
 
-    def __init__(self, url, width, height):
-        self.url = url
-        self.height = height
-        self.width = width
+class Video(Image):
 
     def __unicode__(self):
         return "Video: %s" % self.url
+
 
 class Media(ApiModel):
 
@@ -41,7 +40,21 @@ class Media(ApiModel):
             setattr(self, key, value)
 
     def get_standard_resolution_url(self):
-        return self.images['standard_resolution'].url
+        if self.type == 'image':
+            return self.images['standard_resolution'].url
+        else:
+            return self.videos['standard_resolution'].url
+
+    def get_low_resolution_url(self):
+        if self.type == 'image':
+            return self.images['low_resolution'].url
+        else:
+            return self.videos['low_resolution'].url
+
+
+    def get_thumbnail_url(self):
+        return self.images['thumbnail'].url
+
 
     def __unicode__(self):
         return "Media: %s" % self.id
@@ -49,9 +62,10 @@ class Media(ApiModel):
     @classmethod
     def object_from_dictionary(cls, entry):
         new_media = Media(id=entry['id'])
-        new_media.type = entry.get('type')
+        new_media.type = entry['type']
 
         new_media.user = User.object_from_dictionary(entry['user'])
+
         new_media.images = {}
         for version, version_info in entry['images'].iteritems():
             new_media.images[version] = Image.object_from_dictionary(version_info)
@@ -95,6 +109,14 @@ class Media(ApiModel):
         return new_media
 
 
+class MediaShortcode(Media):
+
+    def __init__(self, shortcode=None, **kwargs):
+        self.shortcode = shortcode
+        for key, value in kwargs.iteritems():
+            setattr(self, key, value)
+
+
 class Tag(ApiModel):
     def __init__(self, name, **kwargs):
         self.name = name
@@ -133,7 +155,7 @@ class Point(ApiModel):
 
 class Location(ApiModel):
     def __init__(self, id, *args, **kwargs):
-        self.id = id
+        self.id = str(id)
         for key, value in kwargs.iteritems():
             setattr(self, key, value)
 
